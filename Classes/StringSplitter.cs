@@ -16,7 +16,9 @@ namespace CommonUtils.Classes
         AddToAll = 1 << 1,
         CrossEmptyValue = 1 << 2,
         TrimPerElement = 1 << 3,
-        AllowSpecialChar = 1 << 4
+        AllowSpecialChar = 1 << 4,
+        AutoOrderTokens = 1 << 5,
+        PrintQuote = 1 << 6
     }
     public class StringSplitHandler
     {
@@ -58,8 +60,6 @@ namespace CommonUtils.Classes
         public string Text 
         { 
             get
-
-
             {
                 return this.Tokenizer.Text;
             } 
@@ -113,6 +113,10 @@ namespace CommonUtils.Classes
             while (!this.Tokenizer.Finish)
             {
                 StringTokenResult tokenResult = this.Tokenizer.Tokenize();
+                if(this.Count > 0  && splitted.Count + 1 >= this.Count)
+                {
+                    tokenResult.TokenText +=  tokenResult.TokenKey +  this.Tokenizer.GetRemainText();
+                }
                 if (this.SplitOptions.HasFlag(StringSplitOption.CrossEmptyValue) && string.IsNullOrEmpty(tokenResult.TokenText))
                 {
                     continue;
@@ -129,6 +133,10 @@ namespace CommonUtils.Classes
                     {
                         break;
                     }
+                }
+                else
+                {
+                    splitted.Add(tokenResult.TokenText);
                 }
                 if (this.Count > 0 && splitted.Count >= this.Count) break;
             }

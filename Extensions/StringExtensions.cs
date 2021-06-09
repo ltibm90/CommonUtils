@@ -2,6 +2,7 @@
 using CommonUtils.Util;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -110,10 +111,12 @@ namespace CommonUtils.Extensions
                 "On",
                 "Off",
                 "Evet",
-                "Hayır"
+                "Hayır",
+                "True",
+                "False"
 
             };
-            if (acceptvalues.Where(e => e == input).Any() || bool.TryParse(input, out bool d))
+            if (acceptvalues.Where(e => e.Equals(input, StringComparison.OrdinalIgnoreCase)).Any() || bool.TryParse(input, out bool d))
             {
                 return true;
             }
@@ -272,13 +275,14 @@ namespace CommonUtils.Extensions
         {
             return SplitEx(input, new string[] { splitter }, count);
         }
-        public static string[] SplitEx(this string input, string[] splitters, int count = 0, StringSplitOption options = StringSplitOption.None)
+        public static string[] SplitEx(this string input, string[] splitters, int count = 0, StringSplitOption options = StringSplitOption.None, StringQuoteOption quoteOption = StringQuoteOption.None)
         {
             StringSplitter splitter = new StringSplitter(input)
             {
                 Splitters = splitters,
                 Count = count,
-                SplitOptions = options
+                SplitOptions = options,
+                SplitQuoteOption = quoteOption
             };
             return splitter.Split();
         }
@@ -407,15 +411,15 @@ namespace CommonUtils.Extensions
         public static bool IncludingQuote(this string Key)
         {
             if (Key == null) return false;
-            if (Key.StartsWith("\"") && Key.EndsWith("\""))
+            if (Key.StartsWith("\"") && Key.EndsWith("\"") || Key.StartsWith("'") && Key.EndsWith("'"))
             {
                 return true;
             }
             return false;
         }
-        public static string RemoveQuota(this string input)
+        public static string RemoveQuote(this string input)
         {
-            if (input.StartsWith("\"") && input.EndsWith("\""))
+            if (input.StartsWith("\"") && input.EndsWith("\"") || input.StartsWith("'") && input.EndsWith("'"))
             {
                 if (input.Length == 2)
                 {
@@ -426,6 +430,7 @@ namespace CommonUtils.Extensions
                     return input.Substring(1, input.Length - 2);
                 }
             }
+
             return input;
         }
         public static string SubstringEx(this string input, int start)
@@ -616,6 +621,41 @@ namespace CommonUtils.Extensions
                 tokenizer.SetSettingsFrom(tokenOptions);
                 return tokenizer.Tokenize().TokenText;
             }
+        }
+        public static string Reverse(this string input)
+        {
+            return string.Join("", input.ToCharArray().Reverse());
+        }
+        public static bool IsEmpty(this string input)
+        {
+            return string.IsNullOrEmpty(input);
+        }
+        public static bool IsPoint(this string input)
+        {
+            if (input.IsEmpty()) return false;
+            int index = input.IndexOf(' ');
+            if (index <= 0) return false;
+            string left = input.Substring(0, index);
+            string right = input.Substring(index + 1);
+            return left.IsNumeric() && right.IsNumeric();
+        }
+        public static Point ToPoint(this string input)
+        {
+            if (input.IsEmpty()) return Point.Empty;
+            int index = input.IndexOf(' ');
+            if (index <= 0) return Point.Empty;
+            string left = input.Substring(0, index);
+            string right = input.Substring(index + 1);
+            return new Point(left.ToInt32(), right.ToInt32());
+        }
+        public static PointF ToPointF(this string input)
+        {
+            if (input.IsEmpty()) return PointF.Empty;
+            int index = input.IndexOf(' ');
+            if (index <= 0) return PointF.Empty;
+            string left = input.Substring(0, index);
+            string right = input.Substring(index + 1);
+            return new PointF(left.ToSingle(), right.ToSingle());
         }
     }
 }

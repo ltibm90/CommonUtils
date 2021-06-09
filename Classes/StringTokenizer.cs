@@ -19,6 +19,19 @@ namespace CommonUtils.Classes
         public string TokenKey { get; set; }
         public bool TokenFound { get; set; }
         public int TokenIndex { get; set; }
+        public void Next(params string[] tokens)
+        {
+            var result = this.Tokenizer.Tokenize(tokens);
+            this.TokenText = result.TokenText;
+            this.TokenKey = result.TokenKey;
+            this.TokenFound = result.TokenFound;
+            this.TokenIndex = result.TokenIndex;
+        }
+        public StringTokenResult NextR(params string[] tokens)
+        {
+            return this.Tokenizer.Tokenize(tokens);
+        }
+        internal StringTokenizer  Tokenizer { get; set; }
     }
     public class StringTokenizer : IDisposable
     {
@@ -49,6 +62,22 @@ namespace CommonUtils.Classes
             }
         }
         public bool Finish { get; private set; }
+        private bool autoOrderTokens;
+        public bool AutoOrderTokens
+        {
+            get
+            {
+                return autoOrderTokens;
+            }
+            set
+            {
+                autoOrderTokens = value;
+                if (autoOrderTokens)
+                {
+                    this.Tokens = this.Tokens;
+                }
+            }
+        }
         private string[] tokens;
         public string[] Tokens
         {
@@ -64,19 +93,33 @@ namespace CommonUtils.Classes
                     tokens = null;
                     return;
                 }
-                if(value.Length > 1)
+                bool isordered = false;
+                if (value.Length > 1)
                 {
-                    tokens = value.OrderByDescending(m => m.Length).ToArray();
+                    isordered = true;
+                    if (this.AutoOrderTokens)
+                    {
+                        tokens = value.OrderByDescending(m => m.Length).ToArray();
+                    }
+                    else
+                    {
+                        tokens = value;
+                    }
+
                 }
                 else
                 {
+                    isordered = true;
                     tokens = value;
                 }
-                if(tokens != null && tokens.Length > 0)
+                if (tokens != null && tokens.Length > 0)
                 {
-                    this.Maxlen = tokens.First().Length;
+                    if (isordered)
+                        this.Maxlen = tokens.First().Length;
+                    else
+                        this.Maxlen = tokens.OrderByDescending(m => m.Length).First().Length;
                 }
-                
+
             }
         }
         public void ResetPosition()
@@ -95,7 +138,7 @@ namespace CommonUtils.Classes
             {
                 this.Finish = false;
                 this.currentPosition = value;
-                if(this.Text != null && this.currentPosition >= this.Text.Length)
+                if (this.Text != null && this.currentPosition >= this.Text.Length)
                 {
                     this.Finish = true;
                 }
@@ -103,37 +146,64 @@ namespace CommonUtils.Classes
         }
         private int Maxlen
         {
-            get;set;
+            get; set;
         }
         public bool PrintSpecialCharacter { get; set; }
-        public bool  AddToAll { get; set; }
+        public bool PrintQuote { get; set; }
+        public bool AddToAll { get; set; }
         public bool AutoTrim { get; set; }
         public bool AllowSpecialChar { get; set; }
-
-
+        public bool SkipEmptyValue { get; set; }
+        public StringSplitOption GetSettings()
+        {
+            StringSplitOption splitOption = StringSplitOption.None;
+            if (this.AddToAll) splitOption |= StringSplitOption.AddToAll;
+            if (this.AutoTrim) splitOption |= StringSplitOption.TrimPerElement;
+            if (this.PrintSpecialCharacter) splitOption |= StringSplitOption.PrintSpecialCharacter;
+            if (this.PrintQuote) splitOption |= StringSplitOption.PrintQuote;
+            if (this.AllowSpecialChar) splitOption |= StringSplitOption.AllowSpecialChar;
+            if (this.AutoOrderTokens) splitOption |= StringSplitOption.AutoOrderTokens;
+            return splitOption;
+        }
         public void SetSettingsFrom(StringSplitOption stringSplitOption)
         {
             this.AddToAll = stringSplitOption.HasFlag(StringSplitOption.AddToAll);
             this.AutoTrim = stringSplitOption.HasFlag(StringSplitOption.TrimPerElement);
             this.PrintSpecialCharacter = stringSplitOption.HasFlag(StringSplitOption.PrintSpecialCharacter);
+            this.PrintQuote = stringSplitOption.HasFlag(StringSplitOption.PrintQuote);
             this.AllowSpecialChar = stringSplitOption.HasFlag(StringSplitOption.AllowSpecialChar);
+            this.AutoOrderTokens = stringSplitOption.HasFlag(StringSplitOption.AutoOrderTokens);
+
         }
         public StringQuoteOption StringQuoteOption { get; set; } = StringQuoteOption.DoubleQuote;
         public string GetRemainText()
         {
-            if(this.Finish || string.IsNullOrEmpty(this.Text))
+            if (this.Finish || string.IsNullOrEmpty(this.Text))
             {
                 return null;
             }
+
             return this.Text.Substring(this.CurrentPosition);
         }
-        public StringTokenResult Tokenize(params string[] token)
+        public StringTokenResult Tokenize(StringQuoteOption stringQuoteOption, StringSplitOption stringSplitOption, params string[] tokens)
+        {
+            this.SetSettingsFrom(stringSplitOption);
+            this.StringQuoteOption = stringQuoteOption;
+            return Tokenize(tokens);
+        }
+        public StringTokenResult Tokenize(StringQuoteOption stringQuoteOption, params string[] tokens)
+        {
+            this.StringQuoteOption = stringQuoteOption;
+            return Tokenize(tokens);
+        }
+        public StringTokenResult Tokenize(params string[] tokens)
         {
             StringTokenResult tokenResult = new StringTokenResult();
+            tokenResult.Tokenizer = this;
             tokenResult.TokenIndex = -1;
-            if (token != null &&token.Length > 0) this.Tokens = token;
+            if (tokens != null && tokens.Length > 0) this.Tokens = tokens;
             if (string.IsNullOrEmpty(this.Text) || this.Tokens == null || this.Tokens.Length == 0) return tokenResult;
-            if(this.CurrentPosition >= this.Text.Length)
+            if (this.CurrentPosition >= this.Text.Length)
             {
                 return tokenResult;
             }
@@ -173,8 +243,11 @@ namespace CommonUtils.Classes
                         }
                         else
                         {
-                            continueNext = true;
-                            quotchar = current;
+                            if(current == '\'' || current == '"')
+                            {
+                                continueNext = true;
+                                quotchar = current;
+                            }
                         }
                     }
                 }
@@ -186,7 +259,7 @@ namespace CommonUtils.Classes
                     }
                     isquote = !isquote;
 
-                    if (this.PrintSpecialCharacter)
+                    if (this.PrintQuote)
                     {
                         currentValue.Append(current);
                     }
@@ -198,6 +271,7 @@ namespace CommonUtils.Classes
                 {
                     if (!isquote)
                     {
+                        
                         currentKey.Append(current);
                     }
 
@@ -205,9 +279,10 @@ namespace CommonUtils.Classes
                     {
                         currentKey.Remove(0, 1);
                     }
+           
                     if (currentKey.Length >= this.Maxlen && !isquote && !specialchar)
                     {
-                        bool next = false;
+                        //bool next = false;
                         for (int j = 0; j < this.Tokens.Length; j++)
                         {
                             if (currentKey.ToString(0, this.Tokens[j].Length) == this.Tokens[j])
@@ -226,6 +301,10 @@ namespace CommonUtils.Classes
                                 {
                                     value = value.Trim();
                                 }
+                                if(this.SkipEmptyValue && value.Length == 0)
+                                {
+                                    break;
+                                }
                                 currentValue.Clear();
                                 currentValue.Append(currentKey.ToString());
                                 this.CurrentPosition = i + 1 - (this.Maxlen - this.Tokens[j].Length);
@@ -236,7 +315,7 @@ namespace CommonUtils.Classes
                                 return tokenResult;
                             }
                         }
-                        if (next) continue;
+                        //if (next) continue;
                     }
                     if ((!quoted || AddToAll))
                     {

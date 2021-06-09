@@ -27,6 +27,15 @@ namespace CommonUtils.Collections
     {
         public string Name { get; set; }
         public object Value { get; set; }
+        public NameValueItem()
+        {
+
+        }
+        public NameValueItem(string name, object value)
+        {
+            this.Name = name;
+            this.Value = value;
+        }
     }
 
 }
