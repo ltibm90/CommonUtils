@@ -87,6 +87,7 @@ namespace CommonUtils.CommandSystem.Utils
         {
             var vs = new CommandParamHeadersList();
             int last = 0;
+            if (string.IsNullOrEmpty(commandHeader)) commandHeader = "";
             int tl = commandHeader.Length;
             do
             {
